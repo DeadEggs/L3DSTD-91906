@@ -2,7 +2,10 @@
 from tkinter import *
 import sqlite3
 
-DATABASE = "\\g\My Drive\School\DTSD\L3\91906 Program\L3DSTD-91906\Databases"
+DATABASE = "Databases"
+
+user_id = -1
+user_type = "n"
 
 # Create root window
 root = Tk()
@@ -37,6 +40,9 @@ if 1 == 1:
         back_button = Button(page, text = "back", command=lambda:(log_in_page()))
         back_button.grid(column=0, row=0)
         
+
+        
+
         #Input user name
         user_name_txt = Label(page, text="Username:")
         user_name_txt.grid(column=1, row=2)
@@ -49,7 +55,30 @@ if 1 == 1:
         password_input = Entry(page, width=8)
         password_input.grid(column=2,row=4)
 
-        clear_page()
+        #Enter
+        enter_button = Button(page, text="Enter",
+            command=lambda:(log_in_funcion(user_name_input.get(),password_input.get())))
+        enter_button.grid(column=2,row=5)
+        reload_page()
+
+    def log_in_funcion(user_name, password):
+            with sqlite3.connect(DATABASE) as db:
+                currser = db.cursor()
+                qrl = f"""SELECT User_ID, User_type FROM User
+                            WHERE Name = "{user_name}"
+                            AND password = "{password}" """
+                currser.execute(qrl)
+                resailts = currser.fetchall()
+                print(resailts)
+            if len(resailts) == 0:
+                incorred = Label(page, text="Username or pasword is incorred")
+                incorred.grid(column=1,row=1)
+            else:
+                global user_id
+                user_id = resailts[0][0]
+                global user_type
+                user_type = resailts[0][1]
+                home_page()
 
     def signup():
         clear_page()
@@ -65,9 +94,9 @@ if 1 == 1:
 
         #Input user name
         email_txt = Label(page, text="Email:")
-        email_txt.grid(column=1, row=2)
+        email_txt.grid(column=1, row=4)
         email_input = Entry(page, width=8)
-        email_input.grid(column=2,row=2)
+        email_input.grid(column=2,row=4)
 
         #Input password
         password_txt = Label(page, text="Password:")
@@ -80,10 +109,11 @@ if 1 == 1:
         password_cheek_txt.grid(column=1, row=8)
         password_cheek_input = Entry(page, width=8)
         password_cheek_input.grid(column=2,row=8)
-        clear_page()
+        reload_page()
 
 def home_page():
     clear_page()
+    bar.grid(column=0,row=0)
     root.title("Home")
     global page
     tet = Button(page, text = "Class 1", command=lambda:(class_page("1")))
@@ -123,7 +153,6 @@ if 1==1:
     home_button.grid(column=0,row=0)
 
 # Open Window
-home_page()
-bar.grid(column=0,row=0)
+log_in_page()
 page.grid(column=0, row=1)
 root.mainloop()

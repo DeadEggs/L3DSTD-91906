@@ -5,8 +5,8 @@ import sqlite3
 
 DATABASE = "Databases"
 
-user_id = -1
-user_type = "n"
+crueent_user = -1
+creent_user_type = "n"
 
 # Create root window
 root = Tk()
@@ -23,8 +23,29 @@ def reload_page():
     page.grid_remove()
     page.grid(column=0, row=1)
 
+def log_out():
+    global crueent_user
+    global creent_user_type
+    crueent_user = -1
+    creent_user_type = "n"
+    bar.grid_forget()
+    log_in_page()
+
 #Login page
 if 1 == 1:
+    def change_user(x):
+        with sqlite3.connect(DATABASE) as db:
+            currser = db.cursor()
+            qrl = f"""SELECT User_ID, User_type FROM User
+                WHERE Name = "{x}" """
+            currser.execute(qrl)
+            info = currser.fetchall()
+            global crueent_user
+            global creent_user_type
+            crueent_user = info[0][0]
+            creent_user_type = info[0][1]
+            bar.grid(column=0,row=0)
+
     def log_in_page():
         clear_page()
         root.title("Home")
@@ -66,15 +87,11 @@ if 1 == 1:
                             AND password = "{password}" """
                 currser.execute(qrl)
                 resailts = currser.fetchall()
-                print(resailts)
             if len(resailts) == 0:
                 incorred = Label(page, text="Username or pasword is incorred")
                 incorred.grid(column=1,row=1)
             else:
-                global user_id
-                user_id = resailts[0][0]
-                global user_type
-                user_type = resailts[0][1]
+                change_user(user_name)
                 home_page()
 
     def signup():
@@ -125,12 +142,10 @@ if 1 == 1:
             cheek = 0
             if password[0] == password[1]:
                 cheek = cheek + 1
-                print(3)
             else:
                 wrong_password = Label(page, text="Passwords don't match")
                 wrong_password.grid(column=1,row=7)
             if user_type[0] in ("T","S","C"):
-                print (2)
                 cheek = cheek + 1
             else: 
                 no_type = Label(page, text="No User type selected")
@@ -145,20 +160,19 @@ if 1 == 1:
                     resailts = currser.fetchall()
                     if len(resailts) == 0:
                         cheek = cheek + 1
-                        print(x)
                     else:
                         e_n_used = Label(page, text=f"{("Name", "Email")[x]} is alreddy in uses")
                         e_n_used.grid(column=1, row=(2*x +1))
                 if cheek == 4:
-                    home_page()
                     qrl = f"""INSERT INTO User (Email, Name, Password, User_type, User_pic)
                              VALUES ("{user_email}", "{user_name}", "{password[0]}", "{user_type[0].lower()}", "bace.png")"""
                     currser.execute(qrl)
+                    change_user(user_name)
+                    home_page()
 
-
+#Home Page
 def home_page():
     clear_page()
-    bar.grid(column=0,row=0)
     root.title("Home")
     global page
     tet = Button(page, text = "Class 1", command=lambda:(class_page("1")))
@@ -194,8 +208,10 @@ def project_page(p_id):
 
 # Bar Segmat
 if 1==1:
-    home_button = Button(bar,text="Home", command= lambda: (home_page()))
+    home_button = Button(bar,text="Home", command = lambda: (home_page()))
     home_button.grid(column=0,row=0)
+    log_out_button = Button(bar, text="Log Out",command = lambda: (log_out()))
+    log_out_button.grid(column=1,row=0)
 
 # Open Window
 log_in_page()

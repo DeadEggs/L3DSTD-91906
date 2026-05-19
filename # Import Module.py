@@ -1,5 +1,6 @@
 # Import Module
 from tkinter import *
+from tkinter import ttk
 import sqlite3
 
 DATABASE = "Databases"
@@ -39,16 +40,12 @@ if 1 == 1:
         #Back Button
         back_button = Button(page, text = "back", command=lambda:(log_in_page()))
         back_button.grid(column=0, row=0)
-        
-
-        
 
         #Input user name
         user_name_txt = Label(page, text="Username:")
         user_name_txt.grid(column=1, row=2)
         user_name_input = Entry(page, width=8)
         user_name_input.grid(column=2,row=2)
-        
         #Input password
         password_txt = Label(page, text="Password:")
         password_txt.grid(column=1, row=4)
@@ -92,24 +89,72 @@ if 1 == 1:
         user_name_input = Entry(page, width=8)
         user_name_input.grid(column=2,row=2)
 
-        #Input user name
+        #Input user email
         email_txt = Label(page, text="Email:")
         email_txt.grid(column=1, row=4)
         email_input = Entry(page, width=8)
         email_input.grid(column=2,row=4)
 
+        #Input user type
+        type_txt = Label(page, text="User Type:")
+        type_txt.grid(column=1, row=6)
+        type_input = ttk.Combobox(page, values=["Student", "Teacher", "Caregiver"], width=8,state= "readonly")
+        type_input.set("")
+        type_input.grid(column=2, row=6)
+
         #Input password
         password_txt = Label(page, text="Password:")
-        password_txt.grid(column=1, row=6)
+        password_txt.grid(column=1, row=8)
         password_input = Entry(page, width=8)
-        password_input.grid(column=2,row=6)
+        password_input.grid(column=2,row=8)
 
         #Cheek password
         password_cheek_txt = Label(page, text="Renter Password:")
-        password_cheek_txt.grid(column=1, row=8)
+        password_cheek_txt.grid(column=1, row=10)
         password_cheek_input = Entry(page, width=8)
-        password_cheek_input.grid(column=2,row=8)
+        password_cheek_input.grid(column=2,row=10)
+
+        enter_button = Button(page, text="Enter",
+            command=lambda:(sign_up_funcion(user_name_input.get(), email_input.get(),
+                                            type_input.get(), 
+                                            (password_input.get(), password_cheek_input.get()))))
+        enter_button.grid(column=2,row=11)
         reload_page()
+
+        def sign_up_funcion(user_name, user_email, user_type, password):
+            cheek = 0
+            if password[0] == password[1]:
+                cheek = cheek + 1
+                print(3)
+            else:
+                wrong_password = Label(page, text="Passwords don't match")
+                wrong_password.grid(column=1,row=7)
+            if user_type[0] in ("T","S","C"):
+                print (2)
+                cheek = cheek + 1
+            else: 
+                no_type = Label(page, text="No User type selected")
+                wrong_password.grid(column=1,row=5)
+            with sqlite3.connect(DATABASE) as db:
+                currser = db.cursor()
+                for x in range(2):
+                    qrl = f"""SELECT * FROM User
+                            WHERE "{("Name", "Email")[x]}" = 
+                            "{(user_name, user_email)[x]}" """
+                    currser.execute(qrl)
+                    resailts = currser.fetchall()
+                    if len(resailts) == 0:
+                        cheek = cheek + 1
+                        print(x)
+                    else:
+                        e_n_used = Label(page, text=f"{("Name", "Email")[x]} is alreddy in uses")
+                        e_n_used.grid(column=1, row=(2*x +1))
+                if cheek == 4:
+                    home_page()
+                    qrl = f"""INSERT INTO User (Email, Name, Password, User_type, User_pic)
+                             VALUES ("{user_email}", "{user_name}", "{password[0]}", "{user_type[0].lower()}", "bace.png")"""
+                    currser.execute(qrl)
+
 
 def home_page():
     clear_page()

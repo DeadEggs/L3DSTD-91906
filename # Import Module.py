@@ -7,6 +7,7 @@ DATABASE = "Databases"
 
 crueent_user = -1
 creent_user_type = "n"
+creent_famly = ""
 
 # Create root window
 root = Tk()
@@ -14,6 +15,9 @@ root = Tk()
 # Sets Up Page secsions
 bar = Frame(root)
 page = Frame(root)
+
+def sql_base(From):
+    return(f"SELECT {From}_ID, Name FROM {From}")
 
 def clear_page():
     global page
@@ -26,6 +30,8 @@ def reload_page():
 def log_out():
     global crueent_user
     global creent_user_type
+    global creent_famly
+    creent_famly = ""
     crueent_user = -1
     creent_user_type = "n"
     bar.grid_forget()
@@ -36,12 +42,14 @@ if 1 == 1:
     def change_user(x):
         with sqlite3.connect(DATABASE) as db:
             currser = db.cursor()
-            qrl = f"""SELECT User_ID, User_type FROM User
-                WHERE Name = "{x}" """
+            qrl = f"""SELECT User_ID, User_type, Famly 
+                FROM User WHERE Name = "{x}" """
             currser.execute(qrl)
             info = currser.fetchall()
             global crueent_user
             global creent_user_type
+            global creent_famly
+            creent_famly = info[0][2]
             crueent_user = info[0][0]
             creent_user_type = info[0][1]
             bar.grid(column=0,row=0)
@@ -170,40 +178,87 @@ if 1 == 1:
                     change_user(user_name)
                     home_page()
 
+def sql_join(id, to, ect):
+    with sqlite3.connect(DATABASE) as db:
+        currser = db.cursor()
+        qrl = f"""SELECT Stu_in_{to}.{to}_ID, {to}.Name
+                FROM Stu_in_{to}
+                join {to} on Stu_in_{to}.{to}_ID = {to}.{to}_ID
+                Where Stu_in_{to}.User_ID = {id} {ect} """
+        currser.execute(qrl)
+        return(currser.fetchall())
+
 #Home Page
 def home_page():
     clear_page()
+    desternaion = home_page
     root.title("Home")
+    links = []
     global page
-    tet = Button(page, text = "Class 1", command=lambda:(class_page("1")))
-    tet.grid()
+    global crueent_user
+    global creent_user_type
+    global creent_famly
+    if creent_user_type == "s":
+        links = sql_join(crueent_user, "Class", "")
+        desternaion = class_page
+    elif creent_user_type == "t":
+        with sqlite3.connect(DATABASE) as db:
+            currser = db.cursor()
+            qrl = f""" {sql_base("Class")} WHERE User_ID = {crueent_user}"""
+            currser.execute(qrl)  
+            links = currser.fetchall()  
+            desternaion = class_page
+    elif creent_user_type == "c":
+        with sqlite3.connect(DATABASE) as db:
+            currser = db.cursor()
+            qrl = f"""{sql_base("User")} WHERE Famly = "{creent_famly}"
+                       AND User_type = "s" """
+            currser.execute(qrl)  
+            links = currser.fetchall()  
+            desternaion = sudent_page
+    for x in range (len(links)):
+        link = Button(page, text= links[x][1], 
+                    command=lambda c = x :(desternaion(links[c][0],links[c][1])))
+        link.grid()
     reload_page()
 
-def class_page(c_id):
+def class_page(c_id, c_name):
     clear_page()
-    root.title("Class" + c_id)
+    root.title("Class" + c_name)
     studen = Button(page, text = "Studen 1", command=lambda:(sudent_page("1")))
     studen.grid()
     projects =Button(page, text = "Project 1", command=lambda:(project_page("1")))
     projects.grid()
     reload_page()
 
-def sudent_page(s_id):
+def sudent_page(s_id, s_name):
     clear_page()
-    root.title("Sudent" + s_id)
-    classes = Button(page, text = "Class 1", command=lambda:(class_page("1")))
-    classes.grid()
-    projects =Button(page, text = "Project 1", command=lambda:(project_page("1")))
-    projects.grid()
+    global crueent_user
+    global creent_user_type
+    root.title("Sudent" + s_name)
+    if creent_user_type == "c":
+        classes = sql_join(s_id, "Class", "")
+    elif creent_user_type == "t":
+        classes = sql_join(s_id, "Class", f"AND Class.User_ID = {crueent_user}")
+    for x in range (len(classes)):
+        class_link = Button(page, text= classes[x][1], 
+            command=lambda c = x :(class_page(classes[c][0],classes[c][1])))
+        class_link.grid(column=x, row=0)
+        with sqlite3.connect(DATABASE) as db:
+            currser = db.cursor()
+            qrl = f"""{sql_base("Project")} WHERE Class_ID = {classes[x][0]}"""
+            print(qrl)
+            currser.execute(qrl)  
+            projects = currser.fetchall()
+            for y in range (len(projects)):
+                projects = Button(page, text= projects[y][1], 
+                    command=lambda c = y :(class_page(projects[c][0],projects[c][1])))
+                projects.grid(column=x, row=(y+1))
     reload_page()
 
-def project_page(p_id):
+def project_page(p_id, p_name):
     clear_page()
-    root.title("Poject" + p_id)
-    studen = Button(page, text = "Studen 1", command=lambda:(sudent_page("1")))
-    studen.grid()
-    classes = Button(page, text = "Class 1", command=lambda:(class_page("1")))
-    classes.grid()
+    root.title("Poject" + p_name)
     reload_page()  
 
 # Bar Segmat

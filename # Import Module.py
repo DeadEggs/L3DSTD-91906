@@ -44,13 +44,13 @@ if 1 == 1:
     def change_user(x):
         with sqlite3.connect(DATABASE) as db:
             curser = db.cursor()
-            qrl = f"""SELECT User_ID, User_type, family 
+            qrl = f"""SELECT User_ID, User_type, family
                 FROM User WHERE Name = "{x}" """
             curser.execute(qrl)
             info = curser.fetchall()
             global current_user, current_user_type, current_family
             current_family = info[0][2]
-            current_user = info[0][0]            
+            current_user = info[0][0]
             current_user_type = info[0][1]
             bar.grid(column=0,row=0)
 
@@ -254,7 +254,7 @@ if 1 == 1:
                 cheek = cheek +1
             with sqlite3.connect(DATABASE) as db:
                 curser = db.cursor()
-                qrl = f""" {sql_base("Class")} Where 
+                qrl = f""" {sql_base("Class")} Where
                     {("Name", "Join_code")[x]} = "{(name, join_code)[x]}"; """
                 curser.execute(qrl)
                 selected_class = curser.fetchall()
@@ -268,8 +268,8 @@ if 1 == 1:
                 qrl = f"""INSERT INTO Class (User_ID, Name, Join_code, Pic)
                             VALUES ({current_user}, "{name}", "{join_code}", "icon1")"""
                 curser.execute(qrl)
-                qrl = f""" {sql_base("Class")} Where 
-                    Name = "{name}"; """    
+                qrl = f""" {sql_base("Class")} Where
+                    Name = "{name}"; """
                 curser.execute(qrl)
                 c_id = curser.fetchall()
             class_page(c_id[0][0],name)
@@ -284,7 +284,7 @@ if 1 == 1:
             if len(selected_class) == 0:
                 print(len(selected_class))
             else:
-                qrl = f"""SELECT * From Stu_in_Class 
+                qrl = f"""SELECT * From Stu_in_Class
                         WHERE User_ID = {current_user} AND User_ID = "{x}"; """
                 curser.execute(qrl)
                 results = curser.fetchall()
@@ -295,13 +295,63 @@ if 1 == 1:
                     class_page(selected_class[0][0],selected_class[0][1])
 
     def class_page(c_id, c_name):
-        clear_page()
+        global page, current_user, current_user_type
         root.title("Class" + c_name)
-        student = Button(page, text = "Student 1", command=lambda:(student_page("1")))
-        student.grid()
-        projects =Button(page, text = "Project 1", command=lambda:(project_page("1")))
-        projects.grid()
+        
+        class_project(c_id)
+    
+    def class_observe(c_id):
+        clear_page()
+        global page, current_user, current_user_type, current_family
+        frame_select = Frame(page)
+        selected_frame = Frame(page)
+
+        observer_frame = Label(frame_select, text="Observe")
+        observer_frame.grid(column=0, row=0)
+        
+        project_frame = Button(frame_select, text="Projects",command=lambda:class_project(c_id))
+        project_frame.grid(column=1,row=0)
+
+        frame_select.grid(column=0, row=0)
+        with sqlite3.connect(DATABASE) as db:
+            
+            curser = db.cursor()
+            qrl = f""""""
+
         reload_page()
+
+    
+    def class_project(c_id):
+        clear_page()
+        global page, current_user, current_user_type, current_family
+        frame_select = Frame(page)
+        selected_frame = Frame(page)
+        for widget in frame_select.winfo_children():
+            widget.destroy()
+
+        if current_user_type == "t":
+            observer_frame = Button(frame_select, text="Observe",command=lambda:class_observe(c_id))
+            observer_frame.grid(column=0, row=0)
+        
+        project_frame = Label(frame_select, text="Projects")
+        project_frame.grid(column=1,row=0)
+
+        frame_select.grid(column=0, row=0)
+
+        
+        with sqlite3.connect(DATABASE) as db:
+            
+            curser = db.cursor()
+            qrl = f"""{sql_base("Project")} WHERE Class_ID = {c_id}"""
+            curser.execute(qrl)
+            projects = curser.fetchall()
+            for y in range (len(projects)):
+                projects = Button(selected_frame, text= projects[y][1],
+                    command=lambda c = y :(project_page(projects[c][0],projects[c][1])))
+                projects.grid(column=(0), row=(y+2))
+        
+        reload_page()
+
 
 def student_page(s_id, s_name):
     clear_page()
@@ -312,17 +362,17 @@ def student_page(s_id, s_name):
     elif current_user_type == "t":
         classes = sql_join(s_id, "Class", f"AND Class.User_ID = {current_user}")
     for x in range (len(classes)):
-        class_link = Button(page, text= classes[x][1], 
+        class_link = Button(page, text= classes[x][1],
             command=lambda c = x :(class_page(classes[c][0],classes[c][1])))
         class_link.grid(column=(x), row=0)
         with sqlite3.connect(DATABASE) as db:
             curser = db.cursor()
             qrl = f"""{sql_base("Project")} WHERE Class_ID = {classes[x][0]}"""
-            curser.execute(qrl)  
+            curser.execute(qrl)
             projects = curser.fetchall()
             for y in range (len(projects)):
-                projects = Button(page, text= projects[y][1], 
-                    command=lambda c = y :(class_page(projects[c][0],projects[c][1])))
+                projects = Button(page, text= projects[y][1],
+                    command=lambda c = y :(project_page(projects[c][0],projects[c][1])))
                 projects.grid(column=(x), row=(y+1))
     reload_page()
 

@@ -141,7 +141,7 @@ if 1 == 1:
 
         enter_button = Button(page, text="Enter",
             command=lambda:(sign_up_function(user_name_input.get(), email_input.get(),
-                                            type_input.get(), 
+                                            type_input.get(),
                                             (password_input.get(), password_cheek_input.get()))))
         enter_button.grid(column=2,row=11)
         reload_page()
@@ -155,14 +155,14 @@ if 1 == 1:
             wrong_password.grid(column=1,row=7)
         if user_type[0] in ("T","S","C"):
             cheek = cheek + 1
-        else: 
+        else:
             no_type = Label(page, text="No User type selected")
             no_type.grid(column=1,row=5)
         with sqlite3.connect(DATABASE) as db:
             curser = db.cursor()
             for x in range(2):
                 qrl = f"""SELECT * FROM User
-                        WHERE "{("Name", "Email")[x]}" = 
+                        WHERE "{("Name", "Email")[x]}" =
                         "{(user_name, user_email)[x]}"; """
                 curser.execute(qrl)
                 results = curser.fetchall()
@@ -174,7 +174,8 @@ if 1 == 1:
         if cheek == 4:
             with sqlite3.connect(DATABASE) as db:
                 curser = db.cursor()
-                qrl = f"""INSERT INTO User (Email, Name, Password, User_type, User_pic, family) VALUES ("{user_email}", "{user_name}", "{password[0]}", "{user_type[0].lower()}", "basic.png", "");"""
+                qrl = f"""INSERT INTO User (Email, Name, Password, User_type, User_pic, family
+                    VALUES ("{user_email}", "{user_name}", "{password[0]}", "{user_type[0].lower()}", "basic.png", "");"""
                 curser.execute(qrl)
                 results = curser.fetchall()
             change_user(user_name)
@@ -200,7 +201,7 @@ def home_page():
         destination = class_page
 
         #join class
-        join_class_txt = Label(page, text="Class Code")
+        join_class_txt = Label(page, text="Class Code:")
         join_class_txt.grid(column=0, row=0)
         join_class_input = Entry(page, width=8)
         join_class_input.grid(column=1,row=0)
@@ -211,27 +212,68 @@ def home_page():
             curser = db.cursor()
             qrl = f""" {sql_base("Class")} WHERE User_ID = {current_user}"""
             curser.execute(qrl)  
-            links = curser.fetchall()  
+            links = curser.fetchall()
             destination = class_page
 
-            #Add class
-            add_class_name_txt = Label(page, text="")
+        #Add class
+        add_class_name_txt = Label(page, text="Class Name:")
+        add_class_name_input = Entry(page, width=8)
+        add_class_name_txt.grid(column=0, row=1)
+        add_class_name_input.grid(column=1,row=1)
+
+        add_class_password_txt = Label(page, text="Class Join Code")
+        add_class_password_input = Entry(page, width=8)
+        add_class_password_txt.grid(column=0, row=3)
+        add_class_password_input.grid(column=1, row=3)
+        enter_button = Button(page, text="Enter",command=lambda:
+                                add_class(add_class_name_input.get(),add_class_password_input.get()))
+        enter_button.grid(column=2,row=3)
+
     elif current_user_type == "c":
         with sqlite3.connect(DATABASE) as db:
             curser = db.cursor()
             qrl = f"""{sql_base("User")} WHERE family = "{current_family}"
                        AND User_type = "s" """
-            curser.execute(qrl)  
-            links = curser.fetchall()  
+            curser.execute(qrl)
+            links = curser.fetchall()
             destination = student_page
     for x in range (len(links)):
-        link = Button(page, text= links[x][1], 
+        link = Button(page, text= links[x][1],
                     command=lambda c = x :(destination(links[c][0],links[c][1])))
         link.grid()
     reload_page()
 
 # Classes
 if 1 == 1:
+    def add_class(name, join_code):
+        global current_user
+        cheek = 0
+        for x in range(len((name, join_code))):
+            if (name, join_code)[x] != "":
+                print((name, join_code)[x])
+                cheek = cheek +1
+            with sqlite3.connect(DATABASE) as db:
+                curser = db.cursor()
+                qrl = f""" {sql_base("Class")} Where 
+                    {("Name", "Join_code")[x]} = "{(name, join_code)[x]}"; """
+                curser.execute(qrl)
+                selected_class = curser.fetchall()
+                if len(selected_class) != 0:
+                    print(len(selected_class))
+                else:
+                    cheek = cheek +1
+        if cheek == 4:
+            with sqlite3.connect(DATABASE) as db:
+                curser = db.cursor()
+                qrl = f"""INSERT INTO Class (User_ID, Name, Join_code, Pic)
+                            VALUES ({current_user}, "{name}", "{join_code}", "icon1")"""
+                curser.execute(qrl)
+                qrl = f""" {sql_base("Class")} Where 
+                    Name = "{name}"; """    
+                curser.execute(qrl)
+                c_id = curser.fetchall()
+            class_page(c_id[0][0],name)
+
     def join_class(x):
         global current_user
         with sqlite3.connect(DATABASE) as db:
@@ -287,7 +329,7 @@ def student_page(s_id, s_name):
 def project_page(p_id, p_name):
     clear_page()
     root.title("Project" + p_name)
-    reload_page()  
+    reload_page()
 
 # Bar Segment
 if 1==1:

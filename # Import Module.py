@@ -5,53 +5,53 @@ import sqlite3
 
 DATABASE = "Databases"
 
-crueent_user = -1
-creent_user_type = "n"
-creent_famly = ""
+current_user = -1
+current_user_type = "n"
+current_family = ""
 
 # Create root window
 root = Tk()
 
-# Sets Up Page secsions
+# Sets Up Page sections
 bar = Frame(root)
 page = Frame(root)
+
+def sql_join(id, to, ect):
+    with sqlite3.connect(DATABASE) as db:
+        curser = db.cursor()
+        qrl = f"""SELECT Stu_in_{to}.{to}_ID, {to}.Name
+                FROM Stu_in_{to}
+                join {to} on Stu_in_{to}.{to}_ID = {to}.{to}_ID
+                Where Stu_in_{to}.User_ID = {id} {ect} """
+        curser.execute(qrl)
+        return(curser.fetchall())
 
 def sql_base(From):
     return(f"SELECT {From}_ID, Name FROM {From}")
 
-def clear_page():
-    global page
-    for widget in page.winfo_children():
-        widget.destroy()
-def reload_page():
-    page.grid_remove()
-    page.grid(column=0, row=1)
+# Change Page
+if 1 == 1:
+    def clear_page():
+        global page
+        for widget in page.winfo_children():
+            widget.destroy()
+    def reload_page():
+        page.grid_remove()
+        page.grid(column=0, row=1)
 
-def log_out():
-    global crueent_user
-    global creent_user_type
-    global creent_famly
-    creent_famly = ""
-    crueent_user = -1
-    creent_user_type = "n"
-    bar.grid_forget()
-    log_in_page()
-
-#Login page
+# Login/out
 if 1 == 1:
     def change_user(x):
         with sqlite3.connect(DATABASE) as db:
-            currser = db.cursor()
-            qrl = f"""SELECT User_ID, User_type, Famly 
+            curser = db.cursor()
+            qrl = f"""SELECT User_ID, User_type, family 
                 FROM User WHERE Name = "{x}" """
-            currser.execute(qrl)
-            info = currser.fetchall()
-            global crueent_user
-            global creent_user_type
-            global creent_famly
-            creent_famly = info[0][2]
-            crueent_user = info[0][0]
-            creent_user_type = info[0][1]
+            curser.execute(qrl)
+            info = curser.fetchall()
+            global current_user, current_user_type, current_family
+            current_family = info[0][2]
+            current_user = info[0][0]            
+            current_user_type = info[0][1]
             bar.grid(column=0,row=0)
 
     def log_in_page():
@@ -83,21 +83,21 @@ if 1 == 1:
 
         #Enter
         enter_button = Button(page, text="Enter",
-            command=lambda:(log_in_funcion(user_name_input.get(),password_input.get())))
+            command=lambda:(log_in_function(user_name_input.get(),password_input.get())))
         enter_button.grid(column=2,row=5)
         reload_page()
 
-    def log_in_funcion(user_name, password):
+    def log_in_function(user_name, password):
             with sqlite3.connect(DATABASE) as db:
-                currser = db.cursor()
+                curser = db.cursor()
                 qrl = f"""SELECT User_ID, User_type FROM User
                             WHERE Name = "{user_name}"
                             AND password = "{password}" """
-                currser.execute(qrl)
-                resailts = currser.fetchall()
-            if len(resailts) == 0:
-                incorred = Label(page, text="Username or pasword is incorred")
-                incorred.grid(column=1,row=1)
+                curser.execute(qrl)
+                results = curser.fetchall()
+            if len(results) == 0:
+                incorrect = Label(page, text="Username or password is incorrect")
+                incorrect.grid(column=1,row=1)
             else:
                 change_user(user_name)
                 home_page()
@@ -140,128 +140,156 @@ if 1 == 1:
         password_cheek_input.grid(column=2,row=10)
 
         enter_button = Button(page, text="Enter",
-            command=lambda:(sign_up_funcion(user_name_input.get(), email_input.get(),
+            command=lambda:(sign_up_function(user_name_input.get(), email_input.get(),
                                             type_input.get(), 
                                             (password_input.get(), password_cheek_input.get()))))
         enter_button.grid(column=2,row=11)
         reload_page()
 
-        def sign_up_funcion(user_name, user_email, user_type, password):
-            cheek = 0
-            if password[0] == password[1]:
-                cheek = cheek + 1
-            else:
-                wrong_password = Label(page, text="Passwords don't match")
-                wrong_password.grid(column=1,row=7)
-            if user_type[0] in ("T","S","C"):
-                cheek = cheek + 1
-            else: 
-                no_type = Label(page, text="No User type selected")
-                wrong_password.grid(column=1,row=5)
+    def sign_up_function(user_name, user_email, user_type, password):
+        cheek = 0
+        if password[0] == password[1]:
+            cheek = cheek + 1
+        else:
+            wrong_password = Label(page, text="Passwords don't match")
+            wrong_password.grid(column=1,row=7)
+        if user_type[0] in ("T","S","C"):
+            cheek = cheek + 1
+        else: 
+            no_type = Label(page, text="No User type selected")
+            no_type.grid(column=1,row=5)
+        with sqlite3.connect(DATABASE) as db:
+            curser = db.cursor()
+            for x in range(2):
+                qrl = f"""SELECT * FROM User
+                        WHERE "{("Name", "Email")[x]}" = 
+                        "{(user_name, user_email)[x]}"; """
+                curser.execute(qrl)
+                results = curser.fetchall()
+                if len(results) == 0:
+                    cheek = cheek + 1
+                else:
+                    e_n_used = Label(page, text=f"{("Name", "Email")[x]} is already in uses")
+                    e_n_used.grid(column=1, row=(2*x +1))
+        if cheek == 4:
             with sqlite3.connect(DATABASE) as db:
-                currser = db.cursor()
-                for x in range(2):
-                    qrl = f"""SELECT * FROM User
-                            WHERE "{("Name", "Email")[x]}" = 
-                            "{(user_name, user_email)[x]}" """
-                    currser.execute(qrl)
-                    resailts = currser.fetchall()
-                    if len(resailts) == 0:
-                        cheek = cheek + 1
-                    else:
-                        e_n_used = Label(page, text=f"{("Name", "Email")[x]} is alreddy in uses")
-                        e_n_used.grid(column=1, row=(2*x +1))
-                if cheek == 4:
-                    qrl = f"""INSERT INTO User (Email, Name, Password, User_type, User_pic)
-                             VALUES ("{user_email}", "{user_name}", "{password[0]}", "{user_type[0].lower()}", "bace.png")"""
-                    currser.execute(qrl)
-                    change_user(user_name)
-                    home_page()
+                curser = db.cursor()
+                qrl = f"""INSERT INTO User (Email, Name, Password, User_type, User_pic, family) VALUES ("{user_email}", "{user_name}", "{password[0]}", "{user_type[0].lower()}", "basic.png", "");"""
+                curser.execute(qrl)
+                results = curser.fetchall()
+            change_user(user_name)
+            home_page()
 
-def sql_join(id, to, ect):
-    with sqlite3.connect(DATABASE) as db:
-        currser = db.cursor()
-        qrl = f"""SELECT Stu_in_{to}.{to}_ID, {to}.Name
-                FROM Stu_in_{to}
-                join {to} on Stu_in_{to}.{to}_ID = {to}.{to}_ID
-                Where Stu_in_{to}.User_ID = {id} {ect} """
-        currser.execute(qrl)
-        return(currser.fetchall())
+    def log_out():
+        global current_user, current_user_type, current_family
+        current_family = ""
+        current_user = -1
+        current_user_type = "n"
+        bar.grid_forget()
+        log_in_page()
 
-#Home Page
+
 def home_page():
     clear_page()
-    desternaion = home_page
+    destination = home_page
     root.title("Home")
     links = []
-    global page
-    global crueent_user
-    global creent_user_type
-    global creent_famly
-    if creent_user_type == "s":
-        links = sql_join(crueent_user, "Class", "")
-        desternaion = class_page
-    elif creent_user_type == "t":
+    global page, current_user, current_user_type, current_family
+    if current_user_type == "s":
+        links = sql_join(current_user, "Class", "")
+        destination = class_page
+
+        #join class
+        join_class_txt = Label(page, text="Class Code")
+        join_class_txt.grid(column=0, row=0)
+        join_class_input = Entry(page, width=8)
+        join_class_input.grid(column=1,row=0)
+        enter_button = Button(page, text="Enter",command=lambda: join_class(join_class_input.get()))
+        enter_button.grid(column=2,row=0)
+    elif current_user_type == "t":
         with sqlite3.connect(DATABASE) as db:
-            currser = db.cursor()
-            qrl = f""" {sql_base("Class")} WHERE User_ID = {crueent_user}"""
-            currser.execute(qrl)  
-            links = currser.fetchall()  
-            desternaion = class_page
-    elif creent_user_type == "c":
+            curser = db.cursor()
+            qrl = f""" {sql_base("Class")} WHERE User_ID = {current_user}"""
+            curser.execute(qrl)  
+            links = curser.fetchall()  
+            destination = class_page
+
+            #Add class
+            add_class_name_txt = Label(page, text="")
+    elif current_user_type == "c":
         with sqlite3.connect(DATABASE) as db:
-            currser = db.cursor()
-            qrl = f"""{sql_base("User")} WHERE Famly = "{creent_famly}"
+            curser = db.cursor()
+            qrl = f"""{sql_base("User")} WHERE family = "{current_family}"
                        AND User_type = "s" """
-            currser.execute(qrl)  
-            links = currser.fetchall()  
-            desternaion = sudent_page
+            curser.execute(qrl)  
+            links = curser.fetchall()  
+            destination = student_page
     for x in range (len(links)):
         link = Button(page, text= links[x][1], 
-                    command=lambda c = x :(desternaion(links[c][0],links[c][1])))
+                    command=lambda c = x :(destination(links[c][0],links[c][1])))
         link.grid()
     reload_page()
 
-def class_page(c_id, c_name):
-    clear_page()
-    root.title("Class" + c_name)
-    studen = Button(page, text = "Studen 1", command=lambda:(sudent_page("1")))
-    studen.grid()
-    projects =Button(page, text = "Project 1", command=lambda:(project_page("1")))
-    projects.grid()
-    reload_page()
+# Classes
+if 1 == 1:
+    def join_class(x):
+        global current_user
+        with sqlite3.connect(DATABASE) as db:
+            curser = db.cursor()
+            qrl = f""" {sql_base("Class")} Where join_code = "{x}"; """
+            curser.execute(qrl)
+            selected_class = curser.fetchall()
+            if len(selected_class) == 0:
+                print(len(selected_class))
+            else:
+                qrl = f"""SELECT * From Stu_in_Class 
+                        WHERE User_ID = {current_user} AND User_ID = "{x}"; """
+                curser.execute(qrl)
+                results = curser.fetchall()
+                if len(results) == 0:
+                    qrl = f"""INSERT INTO Stu_in_Class 
+                            VALUES ({current_user}, {selected_class[0][0]}, 0, 2)"""
+                    curser.execute(qrl)
+                    class_page(selected_class[0][0],selected_class[0][1])
 
-def sudent_page(s_id, s_name):
+    def class_page(c_id, c_name):
+        clear_page()
+        root.title("Class" + c_name)
+        student = Button(page, text = "Student 1", command=lambda:(student_page("1")))
+        student.grid()
+        projects =Button(page, text = "Project 1", command=lambda:(project_page("1")))
+        projects.grid()
+        reload_page()
+
+def student_page(s_id, s_name):
     clear_page()
-    global crueent_user
-    global creent_user_type
-    root.title("Sudent" + s_name)
-    if creent_user_type == "c":
+    global current_user, current_user_type
+    root.title("student" + s_name)
+    if current_user_type == "c":
         classes = sql_join(s_id, "Class", "")
-    elif creent_user_type == "t":
-        classes = sql_join(s_id, "Class", f"AND Class.User_ID = {crueent_user}")
+    elif current_user_type == "t":
+        classes = sql_join(s_id, "Class", f"AND Class.User_ID = {current_user}")
     for x in range (len(classes)):
         class_link = Button(page, text= classes[x][1], 
             command=lambda c = x :(class_page(classes[c][0],classes[c][1])))
-        class_link.grid(column=x, row=0)
+        class_link.grid(column=(x), row=0)
         with sqlite3.connect(DATABASE) as db:
-            currser = db.cursor()
+            curser = db.cursor()
             qrl = f"""{sql_base("Project")} WHERE Class_ID = {classes[x][0]}"""
-            print(qrl)
-            currser.execute(qrl)  
-            projects = currser.fetchall()
+            curser.execute(qrl)  
+            projects = curser.fetchall()
             for y in range (len(projects)):
                 projects = Button(page, text= projects[y][1], 
                     command=lambda c = y :(class_page(projects[c][0],projects[c][1])))
-                projects.grid(column=x, row=(y+1))
+                projects.grid(column=(x), row=(y+1))
     reload_page()
 
 def project_page(p_id, p_name):
     clear_page()
-    root.title("Poject" + p_name)
+    root.title("Project" + p_name)
     reload_page()  
 
-# Bar Segmat
+# Bar Segment
 if 1==1:
     home_button = Button(bar,text="Home", command = lambda: (home_page()))
     home_button.grid(column=0,row=0)

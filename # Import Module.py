@@ -207,7 +207,7 @@ if 1 == 1:
             curser = db.cursor()
             for x in range(2):
                 qrl = f"""SELECT * FROM User
-                        WHERE "{("Name", "Email")[x]}" =
+                        WHERE {("Name", "Email")[x]} =
                         "{(user_name, user_email)[x]}"; """
                 curser.execute(qrl)
                 results = curser.fetchall()
@@ -222,8 +222,9 @@ if 1 == 1:
         if cheek == 4:
             with sqlite3.connect(DATABASE) as db:
                 curser = db.cursor()
-                qrl = f"""INSERT INTO User (Email, Name, Password, User_type, User_pic, family
+                qrl = f"""INSERT INTO User (Email, Name, Password, User_type, User_pic, Family)
                     VALUES ("{user_email}", "{user_name}", "{password[0]}", "{user_type[0].lower()}", "basic.png", "");"""
+                print(qrl)
                 curser.execute(qrl)
                 results = curser.fetchall()
             change_user(user_name)
@@ -363,6 +364,7 @@ if 1 == 1:
                     qrl = f"""INSERT INTO Stu_in_Class 
                             VALUES ({current_user}, {selected_class[0][0]}, 0, 2)"""
                     curser.execute(qrl)
+                    join_project(selected_class[0][0])
                     class_page(selected_class[0][0],selected_class[0][1])
 
     def class_page(c_id, c_name):
@@ -388,7 +390,7 @@ if 1 == 1:
             frame_select.grid(column=0, row=0)
             
         # Set up the selected frame
-        if 1 == 1:        
+        if 1 == 1:
             selected_frame = Frame(page)
 
             # List & link all students in the class
@@ -434,16 +436,29 @@ if 1 == 1:
         if 1 == 1:
             selected_frame = Frame(page)
 
-            # List & link all project in class
+            # Allows teachers to mack a new class 
+            if current_user_type == "t":
+                add_class_name_txt = Label(selected_frame, text="Class Name:")
+                add_class_name_input = Entry(selected_frame, width=8)
+                add_class_name_txt.grid(column=0, row=1)
+                add_class_name_input.grid(column=1,row=1)
+                enter_button = Button(selected_frame, text="Enter",command=lambda:
+                            add_project(add_class_name_input.get(), c_id, selected_frame))
+                enter_button.grid(row=1, column=2)
+
             with sqlite3.connect(DATABASE) as db:
                 curser = db.cursor()
+
+                # Queries for projects in the class
                 qrl = f"""{sql_base("Project")} WHERE Class_ID = {c_id}"""
                 curser.execute(qrl)
                 projects = curser.fetchall()
+
+                # List & link all project in class
                 for x in range (len(projects)):
-                    projects = Button(selected_frame, text= projects[x][1],
+                    project = Button(selected_frame, text= projects[x][1],
                         command=lambda c = x :(project_page(projects[c][0],projects[c][1])))
-                    projects.grid(column=(0), row=(x+2))
+                    project.grid(column=(0), row=(x+2))
             
             selected_frame.grid(column=0, row=1)
         reload_page()
@@ -454,7 +469,6 @@ def student_page(s_id, s_name):
     global current_user, current_user_type
     root.title("student" + s_name)
     flags = []
-
 
     # Queries Class that both you and the student can go to
     if current_user_type == "c":
@@ -502,10 +516,62 @@ def student_page(s_id, s_name):
                 flags.append(flagged)
     reload_page()
 
-def project_page(p_id, p_name):
-    clear_page()
-    root.title("Project" + p_name)
-    reload_page()
+# Projects
+if 1 == 1:
+    def join_project(new_class):
+        global current_user
+
+        # Queries projects in the class
+        with sqlite3.connect(DATABASE) as db:
+            curser = db.cursor()
+            qrl = f"""SELECT Project_ID FROM Project
+                     WHERE Class_ID = "{new_class}" """
+            curser.execute(qrl)
+            projects =  curser.fetchall()
+
+            # Connect Students and project in the database
+            for project in projects:
+                qrl = f"""INSERT INTO Stu_in_Project 
+                            VALUES ({current_user}, {project[0]}, 0, 2)"""
+                curser.execute(qrl)
+
+    def add_project(name, c_ID, frame):
+        with sqlite3.connect(DATABASE) as db:
+            curser = db.cursor()
+            qrl = f"""SELECT Project_ID FROM Project 
+                        WHERE Class_ID = {c_ID} AND Name = "{name}" """
+            curser.execute(qrl)
+            used = curser.fetchall()
+
+            if len(used) != 0:
+                txt = Label(frame, text = "Already Used in this class")
+                txt.grid(row=0, column=1)
+            
+            else:
+                qrl = f"""INSERT INTO Project (Name, Class_ID) 
+                            VALUES ({name}, {c_ID})"""
+                curser.execute(qrl)
+
+                qrl = f"""SELECT Project_ID FROM Project 
+                        WHERE Class_ID = {c_ID} AND Name = "{name}" """
+                curser.execute(qrl)
+                project_id = curser.fetchall()
+
+                qrl = f"""SELECT User_ID FROM Stu_in_class
+                        WHERE Class_ID = {c_ID}"""
+                curser.execute(qrl)
+                students = curser.fetchall()
+
+                for student in students:
+                    qrl = f"""INSERT INTO Stu_in_Project 
+                            VALUES ({student[0]}, {project_id[0][0]}, 0)"""
+                    curser.execute(qrl)
+
+
+    def project_page(p_id, p_name):
+        clear_page()
+        root.title("Project" + p_name)
+        reload_page()
 
 # Bar Segment
 if 1==1:

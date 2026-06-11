@@ -2,6 +2,11 @@
 from tkinter import *
 from tkinter import ttk
 import sqlite3
+import smtplib
+from email.message import EmailMessage
+
+EMAIL = "email25sender@gmail.com"
+APP_PASSWORD = "oozf iyzr ljsd hfmf"
 
 DATABASE = "Databases"
 
@@ -56,6 +61,8 @@ if 1 == 1:
         page.grid(column=0, row=1)
 
 def flag(flagged, user_id, place_id, place, button):
+    global current_user, current_user_type
+
     # Update Database
     with sqlite3.connect(DATABASE) as db:
         curser = db.cursor()
@@ -63,10 +70,73 @@ def flag(flagged, user_id, place_id, place, button):
                        WHERE User_ID = {user_id}
                          AND Class_ID = {place_id} """
         curser.execute(qrl)
-    if flagged ==0 :
+    if flagged == 0 :
         button.config(bg = "red", command=lambda :flag(1, user_id, place_id, place, button))
+        send(user_id, place_id, place)
     else:
         button.config(bg = "blue", command=lambda :flag(0, user_id, place_id, place, button))
+
+def send(user_id, place_id, place):
+    global current_user, current_user_type
+    msg = EmailMessage()
+    
+    with sqlite3.connect(DATABASE) as db:
+        curser = db.cursor()
+        qrl = f"""SELECT Email, Name FROM User
+                   WHERE User_ID = {current_user}"""
+        curser.execute(qrl)
+        sender = curser.fetchall()
+
+        qrl = f"""SELECT Name FROM User
+                   WHERE User_ID = {user_id}"""
+        curser.execute(qrl)
+        kid = curser.fetchall()
+
+    if place == "Project":
+        qrl = f"""SELECT User.Name, User.Email, Class.Name, Project.Name
+                  FROM Project
+                  JOIN Class on Project.Class_ID = Class.Class_ID
+                  JOIN User on Class.User_ID = User.User_ID
+                  WHERE Project.Project_ID = {place_id}"""
+        curser.execute(qrl)
+        class_info = (curser.fetchall())[0]
+        place_name = "Class: " + class_info[2] + ", Project: " + class_info[3]
+    else:
+        qrl = f"""SELECT User.Name, User.Email, Class.Name
+                  FROM Class
+                  JOIN User on Class.User_ID = User.User_ID
+                  WHERE Project.Project_ID = {place_id}"""
+        curser.execute(qrl)
+        class_info = (curser.fetchall())[0]
+        place_name = "Class: " + class_info[2]
+
+    other_receiver = []
+    if current_user_type == "c":
+        receiver = class_info[1]
+        msg["To"] = class_info[0]
+    else: 
+        qrl = f"""SELECT Name, Email FROM user
+                WHERE family = (SELECT family FROM User WHERE User_ID = {user_id})
+                And User_type = "c" """
+        curser.execute(qrl)
+        info = curser.fetchall()
+        receiver =  info[0][1]
+        msg["To"] = info[0][0]
+        other_receiver = []
+        for x in range(1, len(info)):
+            other_receiver.append(info[x][0])
+    msg["Subject"] = f"""{kid[0][0]} Flagged in {place_name}"""
+    msg.set_content(f"""Dare {receiver}, Has be flagged in {place_name} by {sender[0][1]} at {sender[0][0]}""")
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(EMAIL, APP_PASSWORD)
+            server.send_message(msg)
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+
+
+        
+
 
 
 # Login/out
@@ -224,7 +294,6 @@ if 1 == 1:
                 curser = db.cursor()
                 qrl = f"""INSERT INTO User (Email, Name, Password, User_type, User_pic, Family)
                     VALUES ("{user_email}", "{user_name}", "{password[0]}", "{user_type[0].lower()}", "basic.png", "");"""
-                print(qrl)
                 curser.execute(qrl)
                 results = curser.fetchall()
             change_user(user_name)
@@ -549,7 +618,7 @@ if 1 == 1:
             
             else:
                 qrl = f"""INSERT INTO Project (Name, Class_ID) 
-                            VALUES ({name}, {c_ID})"""
+                            VALUES ("{name}", {c_ID})"""
                 curser.execute(qrl)
 
                 qrl = f"""SELECT Project_ID FROM Project 

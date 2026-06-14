@@ -67,77 +67,86 @@ def flag(flagged, user_id, place_id, place, button):
     with sqlite3.connect(DATABASE) as db:
         curser = db.cursor()
         qrl = f"""UPDATE Stu_in_{place} SET Flagged = {(flagged+1)%2}
-                       WHERE User_ID = {user_id}
-                         AND Class_ID = {place_id} """
+                   WHERE User_ID = {user_id}
+                     AND Class_ID = {place_id} """
         curser.execute(qrl)
+    
+    # Update Flag button 
     if flagged == 0 :
         button.config(bg = "red", command=lambda :flag(1, user_id, place_id, place, button))
-        send(user_id, place_id, place)
+        send_flag(user_id, place_id, place)
     else:
         button.config(bg = "blue", command=lambda :flag(0, user_id, place_id, place, button))
 
-def send(user_id, place_id, place):
+def send_flag(user_id, place_id, place):
     global current_user, current_user_type
     msg = EmailMessage()
+    emails = []
     
     with sqlite3.connect(DATABASE) as db:
         curser = db.cursor()
+
+        # Queries who is flagging the kid
         qrl = f"""SELECT Email, Name FROM User
                    WHERE User_ID = {current_user}"""
         curser.execute(qrl)
         sender = curser.fetchall()
 
+        # Queries for the kid
         qrl = f"""SELECT Name FROM User
                    WHERE User_ID = {user_id}"""
         curser.execute(qrl)
         kid = curser.fetchall()
 
-    if place == "Project":
-        qrl = f"""SELECT User.Name, User.Email, Class.Name, Project.Name
-                  FROM Project
-                  JOIN Class on Project.Class_ID = Class.Class_ID
-                  JOIN User on Class.User_ID = User.User_ID
-                  WHERE Project.Project_ID = {place_id}"""
-        curser.execute(qrl)
-        class_info = (curser.fetchall())[0]
-        place_name = "Class: " + class_info[2] + ", Project: " + class_info[3]
-    else:
-        qrl = f"""SELECT User.Name, User.Email, Class.Name
-                  FROM Class
-                  JOIN User on Class.User_ID = User.User_ID
-                  WHERE Project.Project_ID = {place_id}"""
-        curser.execute(qrl)
-        class_info = (curser.fetchall())[0]
-        place_name = "Class: " + class_info[2]
+        # Queries Where the flag is
+        if place == "Project":
+            qrl = f"""SELECT User.Name, User.Email, Class.Name, Project.Name
+                    FROM Project
+                    JOIN Class on Project.Class_ID = Class.Class_ID
+                    JOIN User on Class.User_ID = User.User_ID
+                    WHERE Project.Project_ID = {place_id}"""
+            curser.execute(qrl)
+            class_info = (curser.fetchall())[0]
+            place_name = "Class: " + class_info[2] + ", Project: " + class_info[3]
+        else:
+            qrl = f"""SELECT User.Name, User.Email, Class.Name
+                    FROM Class
+                    JOIN User on Class.User_ID = User.User_ID
+                    WHERE Project.Project_ID = {place_id}"""
+            curser.execute(qrl)
+            class_info = (curser.fetchall())[0]
+            place_name = "Class: " + class_info[2]
 
-    other_receiver = []
-    if current_user_type == "c":
-        receiver = class_info[1]
-        msg["To"] = class_info[0]
-    else: 
-        qrl = f"""SELECT Name, Email FROM user
-                WHERE family = (SELECT family FROM User WHERE User_ID = {user_id})
-                And User_type = "c" """
-        curser.execute(qrl)
-        info = curser.fetchall()
-        receiver =  info[0][1]
-        msg["To"] = info[0][0]
-        other_receiver = []
-        for x in range(1, len(info)):
-            other_receiver.append(info[x][0])
+        # Queries who is getting the email
+        if current_user_type == "c":
+            receiver = class_info[1]
+            msg["To"] = class_info[0]
+        else: 
+            qrl = f"""SELECT Name, Email FROM user
+                    WHERE family = (SELECT family FROM User WHERE User_ID = {user_id})
+                    And User_type = "c" """
+            curser.execute(qrl)
+            info = curser.fetchall()
+            receiver =  info[0][1]
+
+            # Sends the email to all caregivers
+            for x in range(len(info)):
+                emails.append(info[x][0])
+            msg["To"] = ", ".join(emails)
     msg["Subject"] = f"""{kid[0][0]} Flagged in {place_name}"""
-    msg.set_content(f"""Dare {receiver}, Has be flagged in {place_name} by {sender[0][1]} at {sender[0][0]}""")
+
+    if len(emails) <= 1:
+        msg.set_content(f"""Dare {receiver}, Has be flagged in {place_name} by {sender[0][1]} at {sender[0][0]}""")
+    else:
+        msg.set_content(f"""Dare caregivers, has be flagged in {place_name} by {sender[0][1]} at {sender[0][0]}""")
+    
+    # Send Email
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(EMAIL, APP_PASSWORD)
             server.send_message(msg)
     except Exception as e:
         print(f"Failed to send email: {e}")
-
-
-        
-
-
 
 # Login/out
 if 1 == 1:
@@ -292,10 +301,24 @@ if 1 == 1:
         if cheek == 4:
             with sqlite3.connect(DATABASE) as db:
                 curser = db.cursor()
+                fam = ""
+
+                # Set family code for caregivers
+                if user_type[0].lower() == "c":
+                    qrl = f""" SELECT Family FROM User
+                                Where Family Like "{user_name[0:3]}%" 
+                                ORDER BY Family DESC"""
+                    curser.execute(qrl)
+                    results = curser.fetchall()
+                    if len(results) ==0:
+                        fam = user_name[0:3] + "1"
+                    else:
+                        fam = f"{user_name[0:3]}{int((results[0][0])[3:])+1}"
+                
+                # Update database with the new user
                 qrl = f"""INSERT INTO User (Email, Name, Password, User_type, User_pic, Family)
-                    VALUES ("{user_email}", "{user_name}", "{password[0]}", "{user_type[0].lower()}", "basic.png", "");"""
+                    VALUES ("{user_email}", "{user_name}", "{password[0]}", "{user_type[0].lower()}", "basic.png", "{fam}");"""
                 curser.execute(qrl)
-                results = curser.fetchall()
             change_user(user_name)
             home_page()
 
@@ -307,6 +330,28 @@ if 1 == 1:
         bar.grid_forget()
         log_in_page()
 
+# Add Family
+if 1 == 1:
+    def add_family(name, email, password, frame):
+        global current_family
+
+        with sqlite3.connect(DATABASE) as db:
+            curser = db.cursor()
+
+            qrl = f"""SELECT User_ID, Family, User_type FROM User 
+                       WHERE Name = "{name}"
+                         AND Password = "{password}"
+                         AND Email = "{email}" """
+            curser.execute(qrl)
+            person = curser.fetchall()
+            if len(person) == 0:
+                frame[0].config(text = "No user founded")
+            if person[0][1] == "" and person[0][2]:
+                qrl = f"""UPDATE User SET Family = "{current_family}"
+                           WHERE User_ID = "{person[0][0]}" """
+                curser.execute(qrl)
+                frame[0].config(text = "")
+                student_page(person[0][0],name)
 
 def home_page():
     clear_page()
@@ -354,6 +399,28 @@ def home_page():
         enter_button.grid(column=2,row=3)
 
     elif current_user_type == "c":
+
+        incorrect_input = Label(page, text="")
+        incorrect_input.grid(column=0, row=0)
+
+        add_kid_name_txt = Label(page, text="Child Name:")
+        add_kid_name_input = Entry(page, width=8)
+        add_kid_name_txt.grid(column=0, row=1)
+        add_kid_name_input.grid(column=1,row=1)
+
+        add_kid_email_txt = Label(page, text="Child Email:")
+        add_kid_email_input = Entry(page, width=8)
+        add_kid_email_txt.grid(column=2, row=1)
+        add_kid_email_input.grid(column=3, row=1)
+
+        add_kid_password_txt = Label(page, text="Child Password:")
+        add_kid_password_input = Entry(page, width=8)
+        add_kid_password_txt.grid(column=4, row=1)
+        add_kid_password_input.grid(column=5,row=1)
+
+        enter_button = Button(page, text="Enter",command=lambda:add_family(add_kid_name_input.get(),
+            add_kid_email_input.get(),add_kid_password_input.get(),(incorrect_input)))
+        enter_button.grid(column=6,row=3)
 
         # Queries kids of user's
         with sqlite3.connect(DATABASE) as db:

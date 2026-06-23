@@ -20,6 +20,18 @@ root = Tk()
 # Sets Up Page sections
 bar = Frame(root)
 page = Frame(root)
+overlay= Frame(root)
+
+def close_overlay():
+    global overlay, page
+    overlay.grid_remove()  
+    for widget in page.winfo_children():
+        if widget.winfo_class() == "Frame":
+            for widget_2 in widget.winfo_children():
+                widget_2.config(state = "active")
+        else:
+            widget.config(state = "active")
+      
 
 # Sql Query Outlines
 if 1 == 1:
@@ -35,13 +47,13 @@ if 1 == 1:
             return(curser.fetchall())
 
     # Queries Class/Project's Name & ID from selected Student
-    def sql_join(id, to, ect):
+    def sql_join(id, to, ect1, ect2):
         with sqlite3.connect(DATABASE) as db:
             curser = db.cursor()
-            qrl = f"""SELECT Stu_in_{to}.{to}_ID, {to}.Name, Stu_in_{to}.Flagged
+            qrl = f"""SELECT Stu_in_{to}.{to}_ID, {to}.Name, Stu_in_{to}.Flagged {ect1}
                     FROM Stu_in_{to}
                     join {to} on Stu_in_{to}.{to}_ID = {to}.{to}_ID
-                    Where Stu_in_{to}.User_ID = {id} {ect} """
+                    Where Stu_in_{to}.User_ID = {id} {ect2} """
             curser.execute(qrl)
             return(curser.fetchall())
 
@@ -52,9 +64,11 @@ if 1 == 1:
 # Change Page
 if 1 == 1:
     def clear_page():
-        global page
+        global page, overlay
         for widget in page.winfo_children():
             widget.destroy()
+        
+        overlay.grid_remove()
 
     def reload_page():
         page.grid_remove()
@@ -68,7 +82,7 @@ def flag(flagged, user_id, place_id, place, button):
         curser = db.cursor()
         qrl = f"""UPDATE Stu_in_{place} SET Flagged = {(flagged+1)%2}
                    WHERE User_ID = {user_id}
-                     AND Class_ID = {place_id} """
+                     AND {place}_ID = {place_id} """
         curser.execute(qrl)
     
     # Update Flag button 
@@ -112,15 +126,15 @@ def send_flag(user_id, place_id, place):
             qrl = f"""SELECT User.Name, User.Email, Class.Name
                     FROM Class
                     JOIN User on Class.User_ID = User.User_ID
-                    WHERE Project.Project_ID = {place_id}"""
+                    WHERE Class.Class_ID = {place_id}"""
             curser.execute(qrl)
             class_info = (curser.fetchall())[0]
             place_name = "Class: " + class_info[2]
 
         # Queries who is getting the email
         if current_user_type == "c":
-            receiver = class_info[1]
-            msg["To"] = class_info[0]
+            receiver = class_info[0]
+            msg["To"] = class_info[1]
         else: 
             qrl = f"""SELECT Name, Email FROM user
                     WHERE family = (SELECT family FROM User WHERE User_ID = {user_id})
@@ -186,42 +200,58 @@ if 1 == 1:
         back_button = Button(page, text = "back", command=lambda:(log_in_page()))
         back_button.grid(column=0, row=0)
 
-        user_name_txt = Label(page, text="Username:")
-        user_name_txt.grid(column=1, row=2)
-        user_name_input = Entry(page, width=8)
-        user_name_input.grid(column=2,row=2)
+        wrong_input = Label(page, text="")
+
+        inputs = Frame(page)
+        user_name_txt = Label(inputs, text="Username:")
+        user_name_txt.grid(column=0, row=0)
+        user_name_input = Entry(inputs, width=8)
+        user_name_input.grid(column=1,row=0)
         
-        password_txt = Label(page, text="Password:")
-        password_txt.grid(column=1, row=4)
-        password_input = Entry(page, width=8)
-        password_input.grid(column=2,row=4)
+        password_txt = Label(inputs, text="Password:")
+        password_txt.grid(column=0, row=1)
+        password_input = Entry(inputs, width=8)
+        password_input.grid(column=1,row=1)
+        inputs.grid(column=0, row=2)
 
         # Enter
         enter_button = Button(page, text="Enter",
-            command=lambda:(log_in_function(user_name_input.get(),password_input.get())))
-        enter_button.grid(column=2,row=5)
+            command=lambda:(log_in_function(user_name_input.get(),password_input.get(), wrong_input)))
+        enter_button.grid(column=0,row=3)
 
         reload_page()
 
-    def log_in_function(user_name, password):
+    def log_in_function(user_name, password, frame):
+        frame.grid_remove()
+        frame.grid(column=0, row=1)
+        cheek = 0
 
-        # Queries For User that matching inputted name & password
-        with sqlite3.connect(DATABASE) as db:
-            curser = db.cursor()
-            qrl = f"""SELECT User_ID, User_type FROM User
-                        WHERE Name = "{user_name}"
-                        AND password = "{password}" """
-            curser.execute(qrl)
-            results = curser.fetchall()
+        for x in range(2):
+            if (user_name, password)[x] == "":
+                frame.config(text = f"No {("name", "password")[x]}")
+            else:
+                cheek = cheek + 1
 
-        # Informs user if no matches are found
-        if len(results) == 0:
-            incorrect = Label(page, text="Username or password is incorrect")
-            incorrect.grid(column=1,row=1)
+        if cheek == 0:
+            frame.config(text = f"Input both a username and password")
 
-        else:
-            change_user(user_name)
-            home_page()
+        elif cheek == 2:
+            # Queries For User that matching inputted name & password
+            with sqlite3.connect(DATABASE) as db:
+                curser = db.cursor()
+                qrl = f"""SELECT User_ID, User_type FROM User
+                            WHERE Name = "{user_name}"
+                            AND password = "{password}" """
+                curser.execute(qrl)
+                results = curser.fetchall()
+                print()
+
+            # Informs user if no matches are found
+            if len(results) == 0:
+                frame.config(text="Username or password is incorrect")
+            else:
+                change_user(user_name)
+                home_page()
 
     def signup():
         clear_page()
@@ -229,57 +259,58 @@ if 1 == 1:
         back_button = Button(page, text = "back", command=lambda:(log_in_page()))
         back_button.grid(column=0, row=0)
 
-        user_name_txt = Label(page, text="Username:")
-        user_name_txt.grid(column=1, row=2)
-        user_name_input = Entry(page, width=8)
-        user_name_input.grid(column=2,row=2)
+        warnings = []
+        entries = []
+        for x in range(4):
+            warning = Label(page, text = "")
+            warnings.append(warning)
 
-        email_txt = Label(page, text="Email:")
-        email_txt.grid(column=1, row=4)
-        email_input = Entry(page, width=8)
-        email_input.grid(column=2,row=4)
+            input_frame = Frame(page)
+            input_txt = Label(input_frame, 
+                text=f"{("Username","Email","Password","Renter Password")[x]}: ")
+            input_txt.grid(column=0,row=0)
+            input_entry = Entry(input_frame, width=8)
+            input_entry.grid(column=1,row=0)
+            entries.append(input_entry)
+            input_frame.grid(column=1,row=(2*x+2))
 
-        type_txt = Label(page, text="User Type:")
-        type_txt.grid(column=1, row=6)
-        type_input = ttk.Combobox(page, values=["Student", "Teacher", "Caregiver"], width=8,state= "readonly")
+        warning = Label(page, text= "")
+        warnings.append(warning)
+
+        input_frame = Frame(page)
+
+        type_txt = Label(input_frame, text="User Type:")
+        type_txt.grid(column=0, row=0)
+        type_input = ttk.Combobox(input_frame, values=["Student", "Teacher", "Caregiver"], width=8,state= "readonly")
         type_input.set("")
-        type_input.grid(column=2, row=6)
+        type_input.grid(column=1,row=0)
+        entries.append(type_input)
+        input_frame.grid(column=1,row=(10))
 
-        password_txt = Label(page, text="Password:")
-        password_txt.grid(column=1, row=8)
-        password_input = Entry(page, width=8)
-        password_input.grid(column=2,row=8)
-
-        password_cheek_txt = Label(page, text="Renter Password:")
-        password_cheek_txt.grid(column=1, row=10)
-        password_cheek_input = Entry(page, width=8)
-        password_cheek_input.grid(column=2,row=10)
-
-        enter_button = Button(page, text="Enter",
-            command=lambda:(sign_up_function(user_name_input.get(), email_input.get(),
-                                            type_input.get(),
-                                            (password_input.get(), password_cheek_input.get()))))
+        enter_button = Button(page, text="Enter",command=lambda:
+            (sign_up_function(entries,warnings)))
         enter_button.grid(column=2,row=11)
         reload_page()
 
-    def sign_up_function(user_name, user_email, user_type, password):
-        cheek = 0
+    def sign_up_function(entries,warnings):
+        cheek = [0,0,0,0,0,0,0,0]
 
-        # Cheek that passwords match
-        if password[0] == password[1]:
-            cheek = cheek + 1
-        else:
-            # Informs user if Not
-            wrong_password = Label(page, text="Passwords don't match")
-            wrong_password.grid(column=1,row=7)
-        
-        # Cheeks if a user type was selected
-        if user_type[0] in ("T","S","C"):
-            cheek = cheek + 1
-        else:
-            # Informs user if Not
-            no_type = Label(page, text="No User type selected")
-            no_type.grid(column=1,row=5)
+        for x in range(5):
+            if entries[x].get() == "":
+                warnings[x].grid(column=1,row=(2*x+1))
+                warnings[x].config(text = f"Input {("username","email","password","password","user type")[x]}")
+            else:
+                cheek[x] = 1
+                warnings[x].grid_remove()
+
+        if cheek[2] == 1 and cheek[3] == 1:    
+            # Cheek that passwords match
+            if entries[2].get() == entries[3].get():
+                cheek[5] = 1
+            else:
+                # Informs user if Not
+                warnings[2].grid(column=1,row=(2*x+1))
+                warnings[2].config(text = "Passwords don't match")
 
         # Queries if name and email are free to use
         with sqlite3.connect(DATABASE) as db:
@@ -287,39 +318,40 @@ if 1 == 1:
             for x in range(2):
                 qrl = f"""SELECT * FROM User
                         WHERE {("Name", "Email")[x]} =
-                        "{(user_name, user_email)[x]}"; """
+                        "{entries[x].get()}"; """
                 curser.execute(qrl)
                 results = curser.fetchall()
-                if len(results) == 0:
-                    cheek = cheek + 1
-                else:
-                    # Informs user if Not
-                    e_n_used = Label(page, text=f"{("Name", "Email")[x]} is already in uses")
-                    e_n_used.grid(column=1, row=(2*x +1))
+                if cheek[x] == 1:
+                    if len(results) == 0:
+                        cheek[x+6] = 1
+                    else:
+                        # Informs user if Not
+                        warnings[x].grid(column=1,row=(2*x+1))
+                        warnings[x].config(text=f"{("Name", "Email")[x]} is already in uses")
         
         # Add user and logs in if all Cheeks are passed
-        if cheek == 4:
+        if cheek == 8:
             with sqlite3.connect(DATABASE) as db:
                 curser = db.cursor()
                 fam = ""
 
                 # Set family code for caregivers
-                if user_type[0].lower() == "c":
+                if (entries[4].get())[0].lower() == "c":
                     qrl = f""" SELECT Family FROM User
-                                Where Family Like "{user_name[0:3]}%" 
+                                Where Family Like "{(entries[0].get())[0:3]}%" 
                                 ORDER BY Family DESC"""
                     curser.execute(qrl)
                     results = curser.fetchall()
                     if len(results) ==0:
-                        fam = user_name[0:3] + "1"
+                        fam = (entries[0].get())[0:3] + "1"
                     else:
-                        fam = f"{user_name[0:3]}{int((results[0][0])[3:])+1}"
+                        fam = f"{(entries[0].get())[0:3]}{int((results[0][0])[3:])+1}"
                 
                 # Update database with the new user
                 qrl = f"""INSERT INTO User (Email, Name, Password, User_type, User_pic, Family)
-                    VALUES ("{user_email}", "{user_name}", "{password[0]}", "{user_type[0].lower()}", "basic.png", "{fam}");"""
+                    VALUES ("{(entries[1].get())}", "{(entries[0].get())}", "{(entries[2].get())[0]}", "{(entries[4].get())[0].lower()}", "basic.png", "{fam}");"""
                 curser.execute(qrl)
-            change_user(user_name)
+            change_user((entries[0].get()))
             home_page()
 
     def log_out():
@@ -346,7 +378,7 @@ if 1 == 1:
             person = curser.fetchall()
             if len(person) == 0:
                 frame[0].config(text = "No user founded")
-            if person[0][1] == "" and person[0][2]:
+            if person[0][1] == "" and person[0][2] == "s":
                 qrl = f"""UPDATE User SET Family = "{current_family}"
                            WHERE User_ID = "{person[0][0]}" """
                 curser.execute(qrl)
@@ -360,21 +392,29 @@ def home_page():
     links = []
     global page, current_user, current_user_type, current_family
 
+    incorrect_input = Label(page, text="")
+    incorrect_input.grid(column=0, row=0)
+
     if current_user_type == "s":
         
         # Queries classes thats students are in
-        links = sql_join(current_user, "Class", "")
+        links = sql_join(current_user, "Class", ", Class.User_ID","")
         destination = class_page
+        destination_class = "Class"
 
         # Allows students to join class
         join_class_txt = Label(page, text="Class Code:")
         join_class_txt.grid(column=0, row=0)
         join_class_input = Entry(page, width=8)
         join_class_input.grid(column=1,row=0)
-        enter_button = Button(page, text="Enter",command=lambda: join_class(join_class_input.get()))
+        enter_button = Button(page, text="Enter",command=lambda: 
+            join_class(join_class_input.get(), incorrect_input))
         enter_button.grid(column=2,row=0)
 
     elif current_user_type == "t":
+        
+        incorrect_input2 = Label(page, text="")
+        incorrect_input2.grid(column=2, row=0)
 
         # Queries classes that teachers are in 
         with sqlite3.connect(DATABASE) as db:
@@ -395,7 +435,7 @@ def home_page():
         add_class_password_txt.grid(column=0, row=3)
         add_class_password_input.grid(column=1, row=3)
         enter_button = Button(page, text="Enter",command=lambda:
-                                add_class(add_class_name_input.get(),add_class_password_input.get()))
+            add_class(add_class_name_input.get(),add_class_password_input.get(),(incorrect_input,incorrect_input2)))
         enter_button.grid(column=2,row=3)
 
     elif current_user_type == "c":
@@ -433,22 +473,32 @@ def home_page():
 
     # Lists and links class/student pages
     for x in range (len(links)):
-        link = Button(page, text= links[x][1],
-                    command=lambda c = x :(destination(links[c][0],links[c][1])))
+        link = Frame (page,highlightbackground="blue", highlightthickness=2)
+        destination_name = Label(link, text= f"Class: {links[x][1]}")
+        destination_name.grid()
+
+        if current_user_type == "s":
+            teacher = Label(link, text= f"Teacher: {links[x][1]}")
+            teacher.grid()
+        for widget in link.winfo_children():
+            widget.bind("<Button-1>",lambda event, c = x :(destination(links[c][0],links[c][1])))
         link.grid()
     reload_page()
 
 # Classes
 if 1 == 1:
-    def add_class(name, join_code):
+    def add_class(name, join_code, frames):
         global current_user
         cheek = 0
         for x in range(len((name, join_code))):
             
             # Cheeks if the user inputted a name & code
             if (name, join_code)[x] != "":
-                print((name, join_code)[x])
                 cheek = cheek +1
+                frames[x].config(text ="")
+            
+            else:
+                frames[x].config(text = f"No {("name", "join code")[x]} inputted")
 
             # Cheeks if the name & code are in uses
             with sqlite3.connect(DATABASE) as db:
@@ -458,9 +508,10 @@ if 1 == 1:
                 curser.execute(qrl)
                 selected_class = curser.fetchall()
                 if len(selected_class) != 0:
-                    print(len(selected_class))
+                    frames[x].config(text = f"{("Name", "Join code")[x]} already in uses")
                 else:
                     cheek = cheek +1
+                    frames[x].config(text ="")
 
         # Add to pasted all Cheeks add class
         if cheek == 4:
@@ -476,7 +527,7 @@ if 1 == 1:
             class_page(c_id[0][0],name)
 
 
-    def join_class(x):
+    def join_class(x, frame):
         global current_user
         with sqlite3.connect(DATABASE) as db:
             curser = db.cursor()
@@ -486,7 +537,7 @@ if 1 == 1:
             curser.execute(qrl)
             selected_class = curser.fetchall()
             if len(selected_class) == 0:
-                print(len(selected_class))
+                frame.config(text = "No class exists")
 
             # Cheeks if user is already in a class
             else:
@@ -502,6 +553,9 @@ if 1 == 1:
                     curser.execute(qrl)
                     join_project(selected_class[0][0])
                     class_page(selected_class[0][0],selected_class[0][1])
+                
+                else:
+                    frame.config(text = "Already in class")
 
     def class_page(c_id, c_name):
         root.title("Class" + c_name)
@@ -574,12 +628,12 @@ if 1 == 1:
 
             # Allows teachers to mack a new class 
             if current_user_type == "t":
-                add_class_name_txt = Label(selected_frame, text="Class Name:")
-                add_class_name_input = Entry(selected_frame, width=8)
-                add_class_name_txt.grid(column=0, row=1)
-                add_class_name_input.grid(column=1,row=1)
+                add_project_name_txt = Label(selected_frame, text="Class Name:")
+                add_project_name_input = Entry(selected_frame, width=8)
+                add_project_name_txt.grid(column=0, row=1)
+                add_project_name_input.grid(column=1,row=1)
                 enter_button = Button(selected_frame, text="Enter",command=lambda:
-                            add_project(add_class_name_input.get(), c_id, selected_frame))
+                            add_project(add_project_name_input.get(), c_id, selected_frame))
                 enter_button.grid(row=1, column=2)
 
             with sqlite3.connect(DATABASE) as db:
@@ -595,9 +649,47 @@ if 1 == 1:
                     project = Button(selected_frame, text= projects[x][1],
                         command=lambda c = x :(project_page(projects[c][0],projects[c][1])))
                     project.grid(column=(0), row=(x+2))
+                    if current_user_type == "c":
+                        flags = Button(page, text="flag", command= lambda x = x : flag_kids("project", projects[x][0]))
+                        flags.grid(column=(1), row=(x+2))
             
             selected_frame.grid(column=0, row=1)
         reload_page()
+
+
+def flag_kids(place, place_id):
+    global page, overlay, current_user ,current_family
+    for widget in overlay.winfo_children():
+        widget.destroy()
+    
+    for widget in page.winfo_children():
+        if widget.winfo_class() == "Frame":
+            for widget_2 in widget.winfo_children():
+                widget_2.config(state = "disabled")
+        else:
+            widget.config(state = "disabled")
+    
+    with sqlite3.connect(DATABASE) as db:
+        curser = db.cursor()
+        qrl = f"""Select User.User_ID, User.Name, Stu_in_{place}.Flagged From User
+            JOIN Stu_in_{place} on Stu_in_{place}.User_ID = User.User_ID 
+            WHERE Family = "{current_family}"
+            AND Stu_in_{place}.{place}_id = {place_id} """
+        curser.execute(qrl)
+        kids = curser.fetchall()
+    
+    close = Button(overlay, text="Close", command= lambda: close_overlay())
+    close.grid(column= 0, row=0)
+
+    flags = []
+    for x in range(len(kids)):
+        kid = Button(overlay, text=kids[x][1], bg = "blue",
+            command=lambda c = x :flag(kids[c][2], kids[c][0], place_id, "Project", flags[c]))
+        flags.append(kid)
+        if kids[x][2] == 1:
+            kid.config( bg = "red")
+        kid.grid(column=1, row=(1+x))
+    overlay.grid(column=0, row=1)
 
 
 def student_page(s_id, s_name):
@@ -608,9 +700,9 @@ def student_page(s_id, s_name):
 
     # Queries Class that both you and the student can go to
     if current_user_type == "c":
-        classes = sql_join(s_id, "Class", "")
+        classes = sql_join(s_id, "Class","", "")
     elif current_user_type == "t":
-        classes = sql_join(s_id, "Class", f"AND Class.User_ID = {current_user}")
+        classes = sql_join(s_id, "Class", "",f"AND Class.User_ID = {current_user}")
 
     # List & Link classes
     for x in range (len(classes)):
